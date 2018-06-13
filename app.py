@@ -1,4 +1,7 @@
-from flask import Flask, g, render_template, redirect, url_for, flash
+#!/usr/bin/env python3
+
+from flask import (Flask, g, render_template, redirect,
+                   url_for, flash, abort)
 from flask_bcrypt import check_password_hash
 from flask_login import (LoginManager, login_required, login_user,
                          logout_user, current_user)
@@ -61,12 +64,14 @@ def login():
 def new():
     form = NewEntryForm()
     if form.validate_on_submit():
+        url = current_user.slugify(form.title.data)
         models.Entry.create(
             title=form.title.data,
             date=form.date.data,
             timeSpent=form.timeSpent.data,
             whatILearned=form.whatILearned.data.strip(),
             resourcesToRemember=form.resourcesToRemember.data.strip(),
+            url=url,
             tags=form.tags.data.strip(),
             user=g.user.id
         )
@@ -75,19 +80,27 @@ def new():
     return render_template('new.html', form=form)
 
 
+@app.route('/entries/<url>')
+@login_required
+def get_post(url):
+    post = models.Entry.select().where(models.Entry.url == url).get()
+    a = 'hola'
+    if not post:
+        abort(404)
+    return render_template('detail.html', post=post)
+
+
 @app.route('/')
 @login_required
 def index():
-    return render_template('index.html')
+    posts = current_user.get_posts()
+    return render_template('index.html', posts=posts)
 
 
 @app.route('/detail')
 @login_required
 def detail():
     return render_template('detail.html')
-
-
-
 
 
 @app.route('/logout')
@@ -97,6 +110,10 @@ def logout():
     flash('You\'ve been logged out! Come back soon!', 'success')
     return redirect(url_for('login'))
 
+
+@app.errorhandler(404)
+def not_found(error):
+    return render_template('404.html'), 404
 
 
 if __name__ == '__main__':

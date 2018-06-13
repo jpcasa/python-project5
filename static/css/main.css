@@ -26,6 +26,11 @@
 	border-radius: 8px;
 }
 
+.button-error {
+	background-color: #E25157;
+	border-color: #E25157;
+}
+
 .success {
 	background-color: #5BB85F;
 	color: #fff;
@@ -77,4 +82,16 @@
 
 #logout {
 	margin-left: 12px;
+}
+
+.add-some-entries {
+	display: flex;
+	height: 450px;
+	align-items: center;
+	justify-content: center;
+}
+
+.inner-flex {
+	flex: 1;
+	text-align: center;
 }
