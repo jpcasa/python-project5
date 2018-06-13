@@ -1,0 +1,13 @@
+{% macro render_field(field) %}
+  <div class="field">
+    {% if field.errors %}
+      {% for error in field.errors %}
+        <div class="notification-form error">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+    {% if field.label.text != 'CSRF Token' %}
+      <label for="algo">{{field.label.text}}</label>
+    {% endif %}
+    {{ field() }}
+  </div>
+{% endmacro %}

@@ -13,6 +13,7 @@ class User(UserMixin, Model):
     email = CharField(unique=True)
     password = CharField()
 
+
     def get_posts(self):
         """Get Posts from User organized by Date"""
         return Entry.select().where(
@@ -21,18 +22,14 @@ class User(UserMixin, Model):
             Entry.date.desc()
         )
 
+
     def get_post(self, url):
         return Entry.select().where(Entry.url == url)
 
-    def slugify(self, text, delim=u'-'):
-        """Creates a SEO Friendly URL from the title"""
-        _punct_re = re.compile(r'[\t !"#$%&\'()*\-/<=>?@\[\\\]^_`{|},.]+')
-        result = []
-        for word in _punct_re.split(text.lower()):
-            word = normalize('NFKD', word).encode('ascii', 'ignore')
-            if word:
-                result.append(word)
-        return unicode(delim.join(result))
+
+    def separate_tags(self, tag_string):
+        return re.sub(r'\s', '', tag_string).split(',')
+
 
     @classmethod
     def create_user(cls, email, password):
@@ -43,6 +40,7 @@ class User(UserMixin, Model):
             )
         except IntegrityError:
             raise ValueError
+
 
     class Meta:
         database = DATABASE
@@ -55,7 +53,6 @@ class Entry(Model):
     whatILearned = TextField()
     resourcesToRemember = TextField()
     url = CharField(unique=True)
-    tags = CharField()
     user = ForeignKeyField(User, related_name='entries')
 
     class Meta:
@@ -63,6 +60,15 @@ class Entry(Model):
         order_by = ('-title',)
 
 
+class Tags(Model):
+    user = ForeignKeyField(User, related_name='tag_owner')
+    tag = CharField()
+    post_url = CharField()
+
+    class Meta:
+        database = DATABASE
+
+
 def initialize():
     DATABASE.connect()
-    DATABASE.create_tables([User, Entry], safe=True)
+    DATABASE.create_tables([User, Entry, Tags], safe=True)

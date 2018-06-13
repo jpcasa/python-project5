@@ -1,0 +1,21 @@
+{% extends 'layout.html' %}
+{% from 'macros.html' import render_field %}
+
+{% block content %}
+<section>
+  <div class="container">
+    <div class="big-flex">
+      <div class="login-parent">
+        <div class="login-container text-center" id="delete-container">
+          <p>Are you sure you want to delete:</p>
+          <p id="post-title">{{ post.title }}</p>
+          <nav class="container">
+            <a href="/entries/delete/{{ post.id }}/confirm" class="button button-error">Delete</a>
+            <a href="/entries/{{ post.url }}" class="button">Go Back</a>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

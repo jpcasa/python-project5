@@ -2,9 +2,11 @@
 
 from flask import (Flask, g, render_template, redirect,
                    url_for, flash, abort)
+
 from flask_bcrypt import check_password_hash
 from flask_login import (LoginManager, login_required, login_user,
                          logout_user, current_user)
+from slugify import slugify
 
 import models
 from forms import LoginForm, NewEntryForm
@@ -64,7 +66,9 @@ def login():
 def new():
     form = NewEntryForm()
     if form.validate_on_submit():
-        url = current_user.slugify(form.title.data)
+
+        url = slugify(form.title.data)
+
         models.Entry.create(
             title=form.title.data,
             date=form.date.data,
@@ -72,22 +76,127 @@ def new():
             whatILearned=form.whatILearned.data.strip(),
             resourcesToRemember=form.resourcesToRemember.data.strip(),
             url=url,
-            tags=form.tags.data.strip(),
             user=g.user.id
         )
+
+        if form.tags.data:
+            tags = current_user.separate_tags(form.tags.data)
+            for tag in tags:
+                tag_exists = models.Tags.select().where(
+                    (models.Tags.user == g.user._get_current_object()) &
+                    (models.Tags.tag == tag) &
+                    (models.Tags.post_url == url)
+                )
+                if not tag_exists.exists():
+                    models.Tags.create(
+                        user=g.user._get_current_object(),
+                        tag=tag,
+                        post_url=url
+                    )
+
         flash("Entry Created! Congrats!", "success")
         return redirect(url_for('index'))
-    return render_template('new.html', form=form)
+    return render_template('new.html', form=form, post=None, action='add')
 
 
 @app.route('/entries/<url>')
 @login_required
 def get_post(url):
     post = models.Entry.select().where(models.Entry.url == url).get()
-    a = 'hola'
+    tags = models.Tags.select().where(
+        (models.Tags.user == g.user._get_current_object()) &
+        (models.Tags.post_url == post.url)
+    )
+
     if not post:
         abort(404)
-    return render_template('detail.html', post=post)
+    return render_template('detail.html', post=post, tags=tags)
+
+
+@app.route('/entries/edit/<int:id>', methods=('GET', 'POST'))
+@login_required
+def edit_post(id):
+
+    form = NewEntryForm()
+    tags_string = ''
+
+    post = models.Entry.select().where(models.Entry.id == id).get()
+
+    if not post:
+        abort(404)
+
+    if form.validate_on_submit():
+
+        url = slugify(form.title.data)
+
+        if form.tags.data:
+            tags = current_user.separate_tags(form.tags.data)
+            for tag in tags:
+                tag_exists = models.Tags.select().where(
+                    (models.Tags.user == g.user._get_current_object()) &
+                    (models.Tags.tag == tag)
+                )
+                if not tag_exists.exists():
+                    models.Tags.create(
+                        user=g.user._get_current_object(),
+                        tag=tag
+                    )
+                else:
+                    tag_exists.get().tag = tag
+                    tag_exists.get().post_url = url
+                    tag_exists.get().save()
+
+        post.title = form.title.data
+        post.date = form.date.data
+        post.timeSpent = form.timeSpent.data
+        post.whatILearned = form.whatILearned.data
+        post.resourcesToRemember = form.resourcesToRemember.data
+        post.url = url
+        post.save()
+
+        flash("Entry Edited Successfully!", "success")
+        return redirect(url_for('index'))
+
+    tags = models.Tags.select().where(
+        models.Tags.user == g.user._get_current_object()
+    )
+    for i in range(len(tags)):
+        if i < (len(tags) - 1):
+            tags_string += tags[i].tag + ', '
+        else:
+            tags_string += tags[i].tag
+
+    form.title.data = post.title
+    form.date.data = post.date
+    form.timeSpent.data = post.timeSpent
+    form.whatILearned.data = post.whatILearned
+    form.resourcesToRemember.data = post.resourcesToRemember
+    form.tags.data = tags_string
+
+    return render_template('new.html', form=form, post=post, action='edit')
+
+
+
+@app.route('/entries/delete/<int:id>')
+@login_required
+def delete_post(id):
+    post = models.Entry.select().where(models.Entry.id == id).get()
+    if not post:
+        abort(404)
+    return render_template('delete.html', post=post)
+
+
+@app.route('/entries/delete/<int:id>/confirm')
+@login_required
+def delete_post_confirm(id):
+    post = models.Entry.select().where(models.Entry.id == id).get()
+    try:
+        post.delete_instance()
+    except models.IntegrityError:
+        abort(404)
+    else:
+        flash("You've deleted the entry Successfully!", "success")
+        return redirect(url_for('index'))
 
 
 @app.route('/')
@@ -95,12 +204,6 @@ def get_post(url):
 def index():
     posts = current_user.get_posts()
     return render_template('index.html', posts=posts)
-
-
-@app.route('/detail')
-@login_required
-def detail():
-    return render_template('detail.html')
 
 
 @app.route('/logout')
