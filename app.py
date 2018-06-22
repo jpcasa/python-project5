@@ -223,7 +223,7 @@ if __name__ == '__main__':
     models.initialize()
     try:
         models.User.create_user(
-            email='hola@jpcasabianca.com',
+            email='hi@teamtreehouse.com',
             password='1234567890'
         )
     except ValueError:
